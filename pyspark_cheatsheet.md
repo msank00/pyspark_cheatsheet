@@ -1,5 +1,11 @@
 # PySpark CheatSheet
 
+Let's talk about this... `inport numpy as np`
+
+- bullet 1
+  - bullet 1,1
+- bullet 2
+
 ```py
 sdf = Spark Data Frame 
 ```
@@ -34,6 +40,9 @@ sdf = sdf.filter(sdf.claim_no.isin('values'))
 ### Get NULL Count
 
 ```py
+from pyspark.sql import functions as F
+from pyspark.sql.functions import col, count, when, isnan
+
 n_row = sdf.count()
 print("total rows: {}".format(n_row))
 sdf_null_count = sdf.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in sdf.columns])
@@ -85,7 +94,16 @@ timeDiff = (F.unix_timestamp('End_date_<col_name>', format=timeFmt)
 df = df.withColumn("Duration", timeDiff)
 ```
 
+
+
 [SO_link](https://stackoverflow.com/questions/44821206/pyspark-difference-between-two-dates-cast-timestamptype-datediff?rq=1)
+
+##  Number of unique values in a column
+
+```py
+col_nmae = "PRODUCT_TYPE"
+sdf.select(col_name).distinct().count()
+```
 
 ## Fill NA with median for multiple columns 
 
@@ -146,8 +164,35 @@ pd.DataFrame(
 
 [SO](https://stackoverflow.com/questions/39154325/pyspark-show-histogram-of-a-data-frame-column)
 
+
+## Median finding - Multiple column
+
+**Note:** Remember that `sdf.stat.approxQuantile()` always returs a `list`
+
+```py
+def roughfix_spark(sdf):
+
+    # URL: https://stackoverflow.com/questions/45287832/pyspark-approxquantile-function
+
+    col_float = [item[0] for item in sdf.dtypes if item[1].startswith('float')] 
+    col_decimal = [item[0] for item in sdf.dtypes if item[1].startswith('decimal')] 
+    col_numeric = sorted(col_float + col_decimal)
+
+    median_dict = {}
+    ls_missing_median = []
+    for c in col_numeric:
+        median = sdf.stat.approxQuantile(c, [0.5], 0.1)
+        if len(median) == 1:
+            median_dict[c] = median[0]
+        elif len(median) == 0:
+            ls_missing_median.append(c)
+
+    return sdf.na.fill(median_dict)
+```
+
 ## Reference:
 
 - [AnalyticsVidya](https://www.analyticsvidhya.com/blog/2016/10/spark-dataframe-and-operations/)
 - [PySpark_SQL_Cheat_Sheet](https://s3.amazonaws.com/assets.datacamp.com/blog_assets/PySpark_SQL_Cheat_Sheet_Python.pdf)
 - [pyspark-cheatsheet](https://www.qubole.com/resources/pyspark-cheatsheet/)
+- [pyspark-dataframe-tutorial](https://www.edureka.co/blog/pyspark-dataframe-tutorial/)
